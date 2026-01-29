@@ -57,13 +57,14 @@ class State(BaseModel):
     draft_meta: Dict[str, Any] = Field(default_factory=dict)
 
 
+#问题请求model 核心model
 class QuestionnaireNextRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    problem: str
-    options: List[str]
-    state: Optional[State] = None
-    last_answer: Optional[Dict[str, Any]] = None
+    problem: str #问题
+    options: List[str] #用户输入的选项
+    state: Optional[State] = None #上一轮回复所保留的中间结论，用于给下一轮的context
+    last_answer: Optional[Dict[str, Any]] = None #最终结果
 
 
 class FactsCompletionItem(BaseModel):

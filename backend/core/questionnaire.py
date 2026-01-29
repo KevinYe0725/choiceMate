@@ -23,6 +23,7 @@ DIMENSIONS: List[DimensionKey] = ["impact", "cost", "risk", "reversibility"]
 
 
 def next_step(request: QuestionnaireNextRequest) -> QuestionnaireNextResponse:
+    #每次必须携带problem
     problem = (request.problem or "").strip()
     if not problem:
         raise ValueError("problem 不能为空")
@@ -30,7 +31,7 @@ def next_step(request: QuestionnaireNextRequest) -> QuestionnaireNextResponse:
     options = _clean_options(request.options)
     if len(options) < 2:
         raise ValueError("options 至少需要两个非空选项")
-
+    #state 为空，说明为初始状态，还没有这是一个新的选项
     if request.state is None:
         state = State(round=1, facts=FactsOptionalRatings(), draft_meta={})
         question = _weights_sliders_question()
@@ -44,13 +45,17 @@ def next_step(request: QuestionnaireNextRequest) -> QuestionnaireNextResponse:
         )
 
     current_round = request.state.round
+    #不同轮次采用不同的解决方案
     if current_round == 1:
+        #提取各个维度权重
         weights = _extract_weights(request.last_answer)
+        #创建新的state
         state = State(
             round=2,
             facts=FactsOptionalRatings(weights=weights, option_ratings=request.state.facts.option_ratings),
             draft_meta=request.state.draft_meta or {},
         )
+        #
         question = _ratings_matrix_question(options)
         return QuestionnaireNextResponse(
             round=2,
@@ -103,7 +108,7 @@ def _clean_options(options: List[str]) -> List[str]:
             cleaned.append(value)
     return cleaned
 
-
+#用滑块给各个维度分配权重，default为3
 def _weights_sliders_question() -> Dict[str, Any]:
     return {
         "type": "weights_sliders",
@@ -116,7 +121,7 @@ def _weights_sliders_question() -> Dict[str, Any]:
         ],
     }
 
-
+#给矩阵问题进行评分
 def _ratings_matrix_question(options: List[str]) -> Dict[str, Any]:
     defaults = {option: {dim: 3 for dim in DIMENSIONS} for option in options}
     return {
@@ -132,7 +137,7 @@ def _ratings_matrix_question(options: List[str]) -> Dict[str, Any]:
         "defaults": defaults,
     }
 
-
+#提取权重
 def _extract_weights(last_answer: Optional[Dict[str, Any]]) -> Weights:
     if not last_answer or "weights" not in last_answer:
         raise ValueError("round=1 需要提交 weights")
